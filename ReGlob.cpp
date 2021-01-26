@@ -14,7 +14,7 @@
 
 #include "ReGlob.hpp"
 
-std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config config) {
+std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_config config) {
 	enum domains {
 		DOMAIN_NONE = 0, DOMAIN_SQUARE_BRACKET = 1, DOMAIN_BRACES = 2
 	};
@@ -185,11 +185,17 @@ std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config c
 		throw reglob_error(error_msg);
 	}
 
-	std::regex_constants::syntax_option_type regex_type = std::regex::ECMAScript | std::regex::optimize;
-
 	if (!config.full_match) {
 		regexp_str = "^" + regexp_str + "$";
 	}
+
+	return regexp_str;
+}
+
+std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config config) {
+	auto regexp_str = ReGlob_String(glob, config);
+
+	std::regex_constants::syntax_option_type regex_type = std::regex::ECMAScript | std::regex::optimize;
 
 	if (config.ignore_case) {
 		regex_type = regex_type | std::regex::icase;

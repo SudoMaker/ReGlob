@@ -42,6 +42,6 @@ namespace SudoMaker {
 
 	};
 
-	std::regex ReGlob(const std::string& glob, reglob_config config);
-
+	extern std::regex ReGlob(const std::string& glob, reglob_config config);
+	extern std::string ReGlob_String(const std::string& glob, reglob_config config);
 }

@@ -18,6 +18,14 @@ using namespace SudoMaker;
 
 int main(int argc, char **argv) {
 	if (argv[2]) {
+		auto regexp_str = ReGlob_String(argv[1], {
+			.ignore_case = false,
+			.bash_syntax = true,
+			.capture = true,
+		});
+
+		std::cout << regexp_str << "\n";
+
 		std::regex regexp = ReGlob(argv[1], {
 			.ignore_case = false,
 			.bash_syntax = true,
