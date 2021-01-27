@@ -70,58 +70,71 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 				break;
 
 			case '[':
-				if (!escaped && config.bash_syntax) {
-					if (config.capture) {
-						if (*std::find(domain.begin(), domain.end(), DOMAIN_SQUARE_BRACKET) == DOMAIN_SQUARE_BRACKET) {
-							throw reglob_error("ReGlob: Cannot group square bracket inside square brackets.");
+				if (!escaped) {
+					if (config.bash_syntax) {
+						if (config.capture) {
+							if (std::find(domain.begin(), domain.end(), DOMAIN_SQUARE_BRACKET) != domain.end()) {
+								throw reglob_error("ReGlob: Cannot group square bracket inside square brackets.");
+							}
+							regexp_str += '(';
+							domain.push_back(DOMAIN_SQUARE_BRACKET);
 						}
-						regexp_str += '(';
-						domain.push_back(DOMAIN_SQUARE_BRACKET);
+					} else {
+						regexp_str += "\\";
 					}
-				} else {
-					regexp_str += "\\";
 				}
 				regexp_str += c;
 				escaped = false;
 				break;
 
 			case ']':
-				if (!escaped && config.bash_syntax) {
-					if (config.capture) {
-						if (current_domain == DOMAIN_SQUARE_BRACKET) {
-							regexp_str += "])";
-							domain.pop_back();
+				if (escaped) {
+					regexp_str += c;
+				} else {
+					if (config.bash_syntax) {
+						if (config.capture) {
+							if (current_domain == DOMAIN_SQUARE_BRACKET) {
+								regexp_str += "])";
+								domain.pop_back();
+							} else {
+								regexp_str += "\\]";
+							}
 						} else {
-							regexp_str += "\\]";
+							regexp_str += c;
 						}
 					} else {
-						regexp_str += c;
+						regexp_str += "\\]";
 					}
-				} else {
-					regexp_str += "\\]";
 				}
 				escaped = false;
 				break;
 
 			case '{':
-				if (!escaped && config.bash_syntax) {
-					domain.push_back(DOMAIN_BRACES);
-					regexp_str += '(';
-					break;
-				} else {
-					regexp_str += '\\';
+				if (!escaped) {
+					if (!escaped && config.bash_syntax) {
+						domain.push_back(DOMAIN_BRACES);
+						regexp_str += '(';
+						if (!config.capture) {
+							regexp_str += "?:";
+						}
+						break;
+					} else {
+						regexp_str += '\\';
+					}
 				}
 				regexp_str += c;
 				escaped = false;
 				break;
 
 			case '}':
-				if (!escaped && current_domain == DOMAIN_BRACES && config.bash_syntax) {
-					domain.pop_back();
-					regexp_str += ')';
-					break;
-				} else {
-					regexp_str += '\\';
+				if (!escaped) {
+					if (!escaped && current_domain == DOMAIN_BRACES && config.bash_syntax) {
+						domain.pop_back();
+						regexp_str += ")";
+						break;
+					} else {
+						regexp_str += '\\';
+					}
 				}
 				regexp_str += c;
 				escaped = false;
@@ -158,10 +171,18 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 						}
 					} else {
 						if (star_cnt > 1 && (prev_char == '/' || !prev_char) && (next_char == '/' || !next_char)) {
-							regexp_str += "((?:[^/]*(?:/|$))*)";
+							if (config.capture) {
+								regexp_str += "((?:[^/]*(?:/|$))*)";
+							} else {
+								regexp_str += "(?:[^/]*(?:/|$))*";
+							}
 							i++;
 						} else {
-							regexp_str += "([^/]*)";
+							if (config.capture) {
+								regexp_str += "([^/]*)";
+							} else {
+								regexp_str += "[^/]*";
+							}
 						}
 					}
 				}
@@ -185,7 +206,7 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 		throw reglob_error(error_msg);
 	}
 
-	if (!config.full_match) {
+	if (config.full_match) {
 		regexp_str = "^" + regexp_str + "$";
 	}
 

@@ -21,15 +21,15 @@ int main(int argc, char **argv) {
 		auto regexp_str = ReGlob_String(argv[1], {
 			.ignore_case = false,
 			.bash_syntax = true,
-			.capture = true,
+			.capture = false,
 		});
 
-		std::cout << regexp_str << "\n";
+		std::cout << "Generated regexp str: " << regexp_str << "\n";
 
 		std::regex regexp = ReGlob(argv[1], {
 			.ignore_case = false,
 			.bash_syntax = true,
-			.capture = true,
+			.capture = false,
 		});
 
 		std::smatch m;
