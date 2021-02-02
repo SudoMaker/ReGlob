@@ -1,18 +1,19 @@
 /*
-    This file is part of ReGlob.
+	This file is part of ReGlob.
 
-    Copyright (C) 2021 Yukino Song <yukino@sudomaker.com>
-    Copyright (C) 2021 ReimuNotMoe <reimu@sudomaker.com>
+	Copyright (C) 2021 Yukino Song <yukino@sudomaker.com>
+	Copyright (C) 2021 ReimuNotMoe <reimu@sudomaker.com>
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the MIT License.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the MIT License.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
 #include "ReGlob.hpp"
+#include <cstdio>
 
 std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_config config) {
 	enum domains {
@@ -223,4 +224,33 @@ std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config c
 	}
 
 	return std::regex(regexp_str, regex_type);
+}
+
+std::function<std::unordered_map<std::string, std::string>(std::string)> SudoMaker::ReGlob_Path(std::string path) {
+	std::regex variable_pattern(":(.+?)(-|(?=/|:|$))");
+
+	std::string glob_string = std::regex_replace(path, variable_pattern, "*");
+
+	std::smatch m;
+	std::vector<std::string> variable_defs;
+
+	while (std::regex_search(path, m, variable_pattern)) {
+		variable_defs.emplace_back(m[1]);
+		path = m.suffix();
+	}
+
+	std::regex glob_pattern = ReGlob(glob_string, {.capture = true});
+
+	return [variable_defs, glob_pattern](std::string incoming_path) {
+		std::smatch matched_variables;
+		std::regex_search(incoming_path, matched_variables, glob_pattern);
+
+		std::unordered_map<std::string, std::string> result;
+
+		for (size_t i = 1; i < matched_variables.size(); i++) {
+			result.insert({variable_defs[i - 1], matched_variables[i]});
+		}
+
+		return result;
+	};
 }

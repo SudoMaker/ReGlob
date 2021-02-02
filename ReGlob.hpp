@@ -17,6 +17,7 @@
 #include <string>
 #include <regex>
 #include <iostream>
+#include <unordered_map>
 
 namespace SudoMaker {
 	struct reglob_config {
@@ -44,4 +45,5 @@ namespace SudoMaker {
 
 	extern std::regex ReGlob(const std::string& glob, reglob_config config = {});
 	extern std::string ReGlob_String(const std::string& glob, reglob_config config = {});
+	extern std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob_Path(std::string path);
 }
