@@ -13,9 +13,11 @@
 */
 
 #include "ReGlob.hpp"
-#include <cstdio>
+//#include <cstdio>
 
-std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_config config) {
+using namespace SudoMaker;
+
+std::string ReGlob::RegexpString(const std::string &glob, ReGlob::config config, bool _is_path) {
 	enum domains {
 		DOMAIN_NONE = 0, DOMAIN_SQUARE_BRACKET = 1, DOMAIN_BRACES = 2
 	};
@@ -112,7 +114,7 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 
 			case '{':
 				if (!escaped) {
-					if (!escaped && config.bash_syntax) {
+					if (config.bash_syntax) {
 						domain.push_back(DOMAIN_BRACES);
 						regexp_str += '(';
 						if (!config.capture) {
@@ -129,7 +131,7 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 
 			case '}':
 				if (!escaped) {
-					if (!escaped && current_domain == DOMAIN_BRACES && config.bash_syntax) {
+					if (current_domain == DOMAIN_BRACES && config.bash_syntax) {
 						domain.pop_back();
 						regexp_str += ")";
 						break;
@@ -152,10 +154,13 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 				break;
 
 			case '*': {
-				if (escaped) {
+				if (escaped && !_is_path) {
 					regexp_str += c;
 				} else {
 					char prev_char = i ? glob[i - 1] : 0;
+					if (prev_char && _is_path && escaped) {
+						prev_char = i - 1 ? glob[i - 2] : 0;
+					}
 
 					size_t star_cnt = 1;
 					while (glob[i + 1] == '*') {
@@ -165,21 +170,21 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 					char next_char = glob[i + 1];
 
 					if (!config.globstars) {
-						if (config.capture) {
+						if (config.capture && !escaped) {
 							regexp_str += "(.*)";
 						} else {
 							regexp_str += ".*";
 						}
 					} else {
 						if (star_cnt > 1 && (prev_char == '/' || !prev_char) && (next_char == '/' || !next_char)) {
-							if (config.capture) {
+							if (config.capture && !escaped) {
 								regexp_str += "((?:[^/]*(?:/|$))*)";
 							} else {
 								regexp_str += "(?:[^/]*(?:/|$))*";
 							}
 							i++;
 						} else {
-							if (config.capture) {
+							if (config.capture && !escaped) {
 								regexp_str += "([^/]*)";
 							} else {
 								regexp_str += "[^/]*";
@@ -214,8 +219,8 @@ std::string SudoMaker::ReGlob_String(const std::string &glob, SudoMaker::reglob_
 	return regexp_str;
 }
 
-std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config config) {
-	auto regexp_str = ReGlob_String(glob, config);
+std::regex ReGlob::Regexp(const std::string &glob, ReGlob::config config, bool _is_path) {
+	auto regexp_str = RegexpString(glob, config, _is_path);
 
 	std::regex_constants::syntax_option_type regex_type = std::regex::ECMAScript | std::regex::optimize;
 
@@ -226,28 +231,32 @@ std::regex SudoMaker::ReGlob(const std::string &glob, SudoMaker::reglob_config c
 	return std::regex(regexp_str, regex_type);
 }
 
-std::function<std::unordered_map<std::string, std::string>(std::string)> SudoMaker::ReGlob_Path(std::string path) {
+std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob::Path(const std::string &path) {
+	std::regex star("\\*");
+	std::regex double_star(R"((\\\*){2,})");
+	std::string escaped_path = std::regex_replace(path, star, "\\*");
+	escaped_path = std::regex_replace(escaped_path, double_star, "\\**");
 	std::regex variable_pattern(":(.+?)(-|(?=/|:|$))");
 
-	std::string glob_string = std::regex_replace(path, variable_pattern, "*");
+	std::string glob_string = std::regex_replace(escaped_path, variable_pattern, "*");
 
 	std::smatch m;
 	std::vector<std::string> variable_defs;
 
-	while (std::regex_search(path, m, variable_pattern)) {
+	while (std::regex_search(escaped_path, m, variable_pattern)) {
 		variable_defs.emplace_back(m[1]);
-		path = m.suffix();
+		escaped_path = m.suffix();
 	}
 
-	std::regex glob_pattern = ReGlob(glob_string, {.capture = true});
+	std::regex glob_pattern = ReGlob::Regexp(glob_string, {.capture = true}, true);
 
-	return [variable_defs, glob_pattern](std::string incoming_path) {
+	return [variable_defs, glob_pattern](const std::string &incoming_path) {
 		std::smatch matched_variables;
 		std::regex_search(incoming_path, matched_variables, glob_pattern);
 
 		std::unordered_map<std::string, std::string> result;
 
-		for (size_t i = 1; i < matched_variables.size(); i++) {
+		for (size_t i = 1; i < std::min(matched_variables.size(), variable_defs.size() + 1); i++) {
 			result.insert({variable_defs[i - 1], matched_variables[i]});
 		}
 

@@ -18,13 +18,13 @@ using namespace SudoMaker;
 
 int main(int argc, char **argv) {
 	if (argv[3]) {
-		auto path_matcher = ReGlob_Path(argv[1]);
+		auto path_matcher = ReGlob::Path(argv[1]);
 		auto result = path_matcher(argv[2]);
 		for (auto &it:result) {
 			std::cout << it.first << ": " << it.second << "\n";
 		}
 	} else if (argv[2]) {
-		auto regexp_str = ReGlob_String(argv[1], {
+		auto regexp_str = ReGlob::RegexpString(argv[1], {
 			.ignore_case = false,
 			.bash_syntax = true,
 			.capture = false,
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 
 		std::cout << "Generated regexp str: " << regexp_str << "\n";
 
-		std::regex regexp = ReGlob(argv[1], {
+		std::regex regexp = ReGlob::Regexp(argv[1], {
 			.ignore_case = false,
 			.bash_syntax = true,
 			.capture = false,

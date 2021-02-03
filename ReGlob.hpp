@@ -19,11 +19,11 @@
 #include <iostream>
 #include <unordered_map>
 
-namespace SudoMaker {
-	struct reglob_config {
+namespace SudoMaker::ReGlob {
+	struct config {
 		bool ignore_case = false;	// Ignore case
 		bool bash_syntax = false;	// Use bash-like glob syntax (?[abc][0-9][a-z]), otherwise only asterisks (*) are in effect
-		bool full_match = true;	// Match entire string
+		bool full_match = true;		// Match entire string
 		bool globstars = true;		// Use globstars rules (https://github.com/isaacs/node-glob#glob-primer)
 		bool capture = false;		// Capture wildcards into groups
 	};
@@ -43,7 +43,8 @@ namespace SudoMaker {
 
 	};
 
-	extern std::regex ReGlob(const std::string& glob, reglob_config config = {});
-	extern std::string ReGlob_String(const std::string& glob, reglob_config config = {});
-	extern std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob_Path(std::string path);
+	extern std::regex Regexp(const std::string& glob, config config = {}, bool _is_path = false);
+	extern std::string RegexpString(const std::string& glob, config config = {}, bool _is_path = false);
+
+	extern std::function<std::unordered_map<std::string, std::string>(std::string)> Path(const std::string &path);
 }
