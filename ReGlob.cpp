@@ -13,7 +13,7 @@
 */
 
 #include "ReGlob.hpp"
-//#include <cstdio>
+// #include <cstdio>
 
 using namespace SudoMaker;
 
@@ -60,14 +60,18 @@ std::string ReGlob::RegexpString(const std::string &glob, ReGlob::config config,
 				escaped = false;
 				break;
 			case '?':
-				if (!escaped && config.bash_syntax) {
-					if (config.capture) {
-						regexp_str += "(.)";
-					} else {
-						regexp_str += '.';
-					}
-				} else {
+				if (escaped) {
 					regexp_str += c;
+				} else {
+					if (config.bash_syntax) {
+						if (config.capture) {
+							regexp_str += "(.)";
+						} else {
+							regexp_str += '.';
+						}
+					} else {
+						regexp_str += "\\?";
+					}
 				}
 				escaped = false;
 				break;
@@ -83,7 +87,7 @@ std::string ReGlob::RegexpString(const std::string &glob, ReGlob::config config,
 							domain.push_back(DOMAIN_SQUARE_BRACKET);
 						}
 					} else {
-						regexp_str += "\\";
+						regexp_str += '\\';
 					}
 				}
 				regexp_str += c;
@@ -232,10 +236,23 @@ std::regex ReGlob::Regexp(const std::string &glob, ReGlob::config config, bool _
 }
 
 std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob::Path(const std::string &path) {
+	auto resolved = PathResolve(path);
+	std::string glob_string = resolved.first;
+	std::vector<std::string> variable_defs = resolved.second;
+
+	std::regex glob_pattern = ReGlob::Regexp(glob_string, {.capture = true}, true);
+
+	return [variable_defs, glob_pattern](const std::string &incoming_path) {
+		return PathMatch(glob_pattern, variable_defs, incoming_path);
+	};
+}
+
+std::pair<std::string, std::vector<std::string>> ReGlob::PathResolve(const std::string &path) {
 	std::regex star("\\*");
 	std::regex double_star(R"((\\\*){2,})");
 	std::string escaped_path = std::regex_replace(path, star, "\\*");
 	escaped_path = std::regex_replace(escaped_path, double_star, "\\**");
+
 	std::regex variable_pattern(":(.+?)(-|(?=/|:|$))");
 
 	std::string glob_string = std::regex_replace(escaped_path, variable_pattern, "*");
@@ -248,18 +265,18 @@ std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob:
 		escaped_path = m.suffix();
 	}
 
-	std::regex glob_pattern = ReGlob::Regexp(glob_string, {.capture = true}, true);
+	return {glob_string, variable_defs};
+}
 
-	return [variable_defs, glob_pattern](const std::string &incoming_path) {
-		std::smatch matched_variables;
-		std::regex_search(incoming_path, matched_variables, glob_pattern);
+std::unordered_map<std::string, std::string> ReGlob::PathMatch(const std::regex &r, const std::vector<std::string> &vdef, const std::string &path) {
+	std::smatch matched_variables;
+	std::regex_search(path, matched_variables, r);
 
-		std::unordered_map<std::string, std::string> result;
+	std::unordered_map<std::string, std::string> result;
 
-		for (size_t i = 1; i < std::min(matched_variables.size(), variable_defs.size() + 1); i++) {
-			result.insert({variable_defs[i - 1], matched_variables[i]});
-		}
+	for (size_t i = 1; i < std::min(matched_variables.size(), vdef.size() + 1); i++) {
+		result.insert({vdef[i - 1], matched_variables[i]});
+	}
 
-		return result;
-	};
+	return result;
 }
