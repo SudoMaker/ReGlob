@@ -13,7 +13,7 @@
 */
 
 #include "ReGlob.hpp"
-//#include <cstdio>
+// #include <cstdio>
 
 using namespace SudoMaker;
 
@@ -60,14 +60,18 @@ std::string ReGlob::RegexpString(const std::string &glob, ReGlob::config config,
 				escaped = false;
 				break;
 			case '?':
-				if (!escaped && config.bash_syntax) {
-					if (config.capture && !_is_path) {
-						regexp_str += "(.)";
-					} else {
-						regexp_str += '.';
-					}
-				} else {
+				if (escaped) {
 					regexp_str += c;
+				} else {
+					if (config.bash_syntax) {
+						if (config.capture) {
+							regexp_str += "(.)";
+						} else {
+							regexp_str += '.';
+						}
+					} else {
+						regexp_str += "\\?";
+					}
 				}
 				escaped = false;
 				break;
@@ -83,7 +87,7 @@ std::string ReGlob::RegexpString(const std::string &glob, ReGlob::config config,
 							domain.push_back(DOMAIN_SQUARE_BRACKET);
 						}
 					} else {
-						regexp_str += "\\";
+						regexp_str += '\\';
 					}
 				}
 				regexp_str += c;
@@ -232,7 +236,9 @@ std::regex ReGlob::Regexp(const std::string &glob, ReGlob::config config, bool _
 }
 
 std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob::Path(const std::string &path) {
-	auto [glob_string, variable_defs] = PathResolve(path);
+	auto resolved = PathResolve(path);
+	std::string glob_string = resolved.first;
+	std::vector<std::string> variable_defs = resolved.second;
 
 	std::regex glob_pattern = ReGlob::Regexp(glob_string, {.capture = true}, true);
 
@@ -243,11 +249,9 @@ std::function<std::unordered_map<std::string, std::string>(std::string)> ReGlob:
 
 std::pair<std::string, std::vector<std::string>> ReGlob::PathResolve(const std::string &path) {
 	std::regex star("\\*");
-	std::regex question_mark("\\?");
 	std::regex double_star(R"((\\\*){2,})");
 	std::string escaped_path = std::regex_replace(path, star, "\\*");
 	escaped_path = std::regex_replace(escaped_path, double_star, "\\**");
-	escaped_path = std::regex_replace(escaped_path, question_mark, "\\?");
 
 	std::regex variable_pattern(":(.+?)(-|(?=/|:|$))");
 
