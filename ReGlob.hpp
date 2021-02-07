@@ -47,4 +47,6 @@ namespace SudoMaker::ReGlob {
 	extern std::string RegexpString(const std::string& glob, config config = {}, bool _is_path = false);
 
 	extern std::function<std::unordered_map<std::string, std::string>(std::string)> Path(const std::string &path);
+	extern std::pair<std::string, std::vector<std::string>> PathResolve(const std::string &path);
+	extern std::unordered_map<std::string, std::string> PathMatch(const std::regex &r, const std::vector<std::string> &vdef, const std::string &path);
 }
